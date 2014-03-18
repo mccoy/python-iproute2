@@ -39,9 +39,9 @@ table.load(route)
 # object (the RoutingTable object returns ROUTE objects when you use it like a dictionary). The backend objects are
 # structured exactly like the iproute2 grammar (see 'ip route help'), including the case.  As a result you can do
 # something like this (though I wouldn't recommend it, it's rather ugly):
-print(table['172.29.0.0/16']['NODE_SPEC'].proto)
+print(table['172.16.0.0/24']['NODE_SPEC'].proto)
 # or this:
-print(table['172.29.0.0/16']['INFO_SPEC']['NH'].via)
+print(table['172.16.0.0/24']['INFO_SPEC']['NH'].via)
 # It's far easier to let the library do the heavy lifting for you, and use the keywords off the main ROUTE object
 # (as shown below).
 
@@ -49,10 +49,10 @@ print(table['172.29.0.0/16']['INFO_SPEC']['NH'].via)
 # Fetch a route via it's network (CIDR-less)
 # Currently this only works in small networks.  If you have multiple networks defined as 172.29.0.0/xx the library will
 # return the first one it encounters.  This should be fixed in a coming release.
-print(table['172.29.0.0'])
+print(table['172.16.0.0'])
 
 # Fetch a route via it's network (with CIDR)
-print(table['172.29.0.0/16'])
+print(table['172.16.0.0/24'])
 
 # Determine how a route is routed
 print(table['default'].via)
@@ -66,3 +66,6 @@ print(table['172.32.0.0/16'].dev)
 
 # Scope
 print(table['172.16.0.0/24'].scope)
+
+# Source IP
+print(table['172.16.0.0/24'].src)
