@@ -25,17 +25,20 @@
 
 from collections import OrderedDict
 
-class ParseNode(object):
-    raw_data = ''       # The node's raw, text data
-    next_data = None    # Data which will be passed to the child nodes of this node
-    children = OrderedDict()
 
-    def __init__(self, tokens, raw_includes_children = False):
+class ParseNodeError(Exception): pass
+
+
+class ParseNode(object):
+    def __init__(self, tokens, raw_includes_children = True):
         """
         Constructor.  Calls meth:parse to parse the incoming tokens and then adds any child nodes.
         :param tokens: List of text tokens to parse
 
         """
+        self.children = OrderedDict()
+        self.raw_data = ''  # The node's raw, text data
+        self.next_data = None    # Data which will be passed to the child nodes of this node
         self.raw_includes_children = raw_includes_children
 
         # The token list can potentially be empty (not all grammar options are used)
@@ -50,7 +53,8 @@ class ParseNode(object):
         if not self.raw_includes_children:
             return self.raw_data
 
-        return ' '.join([self.children[child].raw_data for child in self.children])
+        text = self.raw_data + ' '.join([self.children[child].__str__() for child in self.children]).strip()
+        return text
     #---
 
 
@@ -90,6 +94,14 @@ class ParseNode(object):
             else:
                 raise
     #---
+
+
+    def parse(self, tokens):
+        """
+        Merely raises NotImplementedError to make sure the child parse implements this method.
+
+        """
+        raise NotImplementedError('%s.parse' % self.__class__.__name__)
 
 
     def __delitem__(self, key):

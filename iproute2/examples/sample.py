@@ -1,6 +1,6 @@
 # coding=utf-8
 #
-# NAME:         .py
+# NAME:         sample.py
 #
 # AUTHOR:       Nick Whalen <nickw@mindstorm-networks.net>
 # COPYRIGHT:    2014 by Nick Whalen
@@ -18,40 +18,51 @@
 #   limitations under the License.
 #
 # DESCRIPTION:
-#   ATM, this particular file is more for me to remind myself how the grammar works, so I don't have to re-learn the
-# damn thing again.
+#   Some simple examples on how to use the routing table.  Mainly here until I can write some reasonable docs.
 #
 
 # coding=utf-8
-from iproute2.route import routegrammar
-
 
 route = """
-default via 216.244.91.33 dev eth0
-10.64.0.0/16 via 10.65.1.1 dev tun0  metric 101
-10.65.0.1 via 10.65.1.1 dev tun0  metric 101
-10.65.1.0/25 dev tun0  proto kernel  scope link  src 10.65.1.6
-10.65.1.0/24 via 10.65.1.1 dev tun0  metric 101
-50.135.108.0/22 dev eth3  proto kernel  scope link  src 50.135.109.113
-172.27.224.0/23 dev as0t0  proto kernel  scope link  src 172.27.224.1
-172.27.226.0/23 dev as0t1  proto kernel  scope link  src 172.27.226.1
-172.27.228.0/23 dev as0t2  proto kernel  scope link  src 172.27.228.1
-172.27.230.0/23 dev as0t3  proto kernel  scope link  src 172.27.230.1
-172.27.232.0/23 dev as0t4  proto kernel  scope link  src 172.27.232.1
-172.27.234.0/23 dev as0t5  proto kernel  scope link  src 172.27.234.1
-172.29.20.0/24 dev eth2  proto kernel  scope link  src 172.29.20.1
-192.168.100.0/24 dev eth3  proto kernel  scope link  src 192.168.100.100
-216.244.91.32/27 via 10.65.1.1 dev tun0  metric 101
-216.244.91.34 via 50.135.108.1 dev eth3
+default via 172.16.0.1 dev eth0  metric 100
+172.16.0.0/24 dev eth0  proto kernel  scope link  src 172.16.0.200
+172.32.0.0/16 proto static via 172.33.1.1 dev as0t1
 """
 
-routes = []
+from iproute2 import routingtable
 
-for line in route.strip().split('\n'):
-  tokens = line.split()
+table = routingtable.RoutingTable()
+# NOTE: load() with no arguments will load the machine's routing table, provided you're running on Linux
+table.load(route)
 
-  routes.append(routegrammar.ROUTE(tokens, raw_includes_children=True))
+# Now for some quick examples. Note that keywords like 'proto', 'static', 'dev', etc may be used directly off a ROUTE
+# object (the RoutingTable object returns ROUTE objects when you use it like a dictionary). The backend objects are
+# structured exactly like the iproute2 grammar (see 'ip route help'), including the case.  As a result you can do
+# something like this (though I wouldn't recommend it, it's rather ugly):
+print(table['172.29.0.0/16']['NODE_SPEC'].proto)
+# or this:
+print(table['172.29.0.0/16']['INFO_SPEC']['NH'].via)
+# It's far easier to let the library do the heavy lifting for you, and use the keywords off the main ROUTE object
+# (as shown below).
 
-print(routes[0]['NODE_SPEC']['PREFIX'])
 
-print(routes[0].via)
+# Fetch a route via it's network (CIDR-less)
+# Currently this only works in small networks.  If you have multiple networks defined as 172.29.0.0/xx the library will
+# return the first one it encounters.  This should be fixed in a coming release.
+print(table['172.29.0.0'])
+
+# Fetch a route via it's network (with CIDR)
+print(table['172.29.0.0/16'])
+
+# Determine how a route is routed
+print(table['default'].via)
+print(table['default'].dev)
+
+# Note that the default route may also be entered as it's netaddr format 0.0.0.0/0
+print(table['0.0.0.0/0'].via)
+
+# Find the protocol of a route
+print(table['172.32.0.0/16'].dev)
+
+# Scope
+print(table['172.16.0.0/24'].scope)

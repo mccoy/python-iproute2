@@ -127,6 +127,7 @@ class NODE_SPEC(parsenode.ParseNode):
 class NH(parsenode.ParseNode):
     """
     Defines the 'NH' segment of the iproute2 routing grammar.
+
     """
     options = ('via', 'dev', 'weight')
     flags = ('onlink', 'pervasive')
@@ -183,6 +184,7 @@ class NH(parsenode.ParseNode):
 class OPTIONS(parsenode.ParseNode):
     """
     Defines the 'OPTIONS' segment of the iproute2 routing grammar.
+
     """
     options = ('mtu', 'advmss','rtt','rttvar','reordering','window','cwnd','initcwnd','ssthresh','realms','src',
                'rto_min','hoplimit','initrwnd')
@@ -246,10 +248,23 @@ class INFO_SPEC_Error(Exception):
 class INFO_SPEC(parsenode.ParseNode):
     """
     Defines the 'INFO_SPEC' segment of the iproute2 routing grammar.
+
     """
     child_class_list = (NH, OPTIONS)
     #TODO: This is reference to NH according to the grammar, and there can be multiples.  Fix it to support this.
     nexthop = None
+
+
+    def __getattr__(self, attr):
+        """
+        Allows child attributes to be fetched from the parent (making life MUCH easier for most cases).
+
+        """
+        for child in self.children:
+            if hasattr(self.children[child], attr):
+                return getattr(self.children[child], attr)
+
+        raise AttributeError
 
 
     def parse(self, tokens):
@@ -263,33 +278,22 @@ class INFO_SPEC(parsenode.ParseNode):
 class ROUTE(parsenode.ParseNode):
     """
     Defines the 'ROUTE' segment of the the iproute2 routing grammar.
+
     """
     child_class_list = (NODE_SPEC, INFO_SPEC)
     actions = ('add', 'del', 'change', 'append', 'replace', 'monitor')
     action = None
 
     def __getattr__(self, attr):
+        """
+        Allows child attributes to be fetched from the parent (making life MUCH easier for most cases).
+
+        """
         for child in self.children:
             if hasattr(self.children[child], attr):
                 return getattr(self.children[child], attr)
 
-
-    def __getitem__(self, item):
-        """
-        Getter for dictionary style operation.  Supports class variables and referencing child classes by their class
-        names.
-        :param item: String
-
-        """
-        try:
-            return self.__dict__[item]
-        # If the item doesn't exist, see if it matches a child's name
-        except KeyError:
-            if item in self.children:
-                return self.children[item]
-            else:
-                raise
-    #---
+        raise AttributeError
 
 
     def parse(self, tokens):
