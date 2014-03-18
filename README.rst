@@ -59,7 +59,7 @@ ready for public consumption).
   print(table['0.0.0.0/0'].via)
   
   # Find the protocol of a route
-  print(table['172.32.0.0/16'].dev)
+  print(table['172.32.0.0/16'].proto)
   
   # Scope
   print(table['172.16.0.0/24'].scope)
