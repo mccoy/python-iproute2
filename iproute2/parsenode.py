@@ -23,31 +23,34 @@
 # many things.  It spun out of my need to parse iproute2 grammars, so bear that in mind.
 #
 
-from lib import orderedset
+from collections import OrderedDict
 
 class ParseNode(object):
     raw_data = ''       # The node's raw, text data
     next_data = None    # Data which will be passed to the child nodes of this node
-    child_classes = orderedset.OrderedSet() # Ordered list of the parser nodes 'under' this node (child_classes)
-    children = {}
+    children = OrderedDict()
 
-    def __init__(self, tokens, child_class_list = list()):
+    def __init__(self, tokens, raw_includes_children = False):
         """
         Constructor.  Calls meth:parse to parse the incoming tokens and then adds any child nodes.
         :param tokens: List of text tokens to parse
-        :param child_class_list: List of child classes to parse token lists
 
         """
+        self.raw_includes_children = raw_includes_children
+
         # The token list can potentially be empty (not all grammar options are used)
         if tokens:
             self.next_data = self.parse(tokens)    # Call the child class' parser
-        if child_class_list:
-            self.addChildren(child_class_list, self.next_data)
+        if hasattr(self, 'child_class_list'):
+            self.addChildren(self.child_class_list, self.next_data)
     #---
 
 
     def __str__(self):
-        return self.raw_data
+        if not self.raw_includes_children:
+            return self.raw_data
+
+        return ' '.join([self.children[child].raw_data for child in self.children])
     #---
 
 
@@ -120,7 +123,7 @@ class ParseNode(object):
         data = node_data
         for node in nodes:
             # Instantiate the grammar node
-            new_node = node(data)
+            new_node = node(data, self.raw_includes_children)
             # Save the new, instantiated node in a dict by it's class name
             self.children[new_node.__class__.__name__] = new_node
             # Save unused data to be used by next node

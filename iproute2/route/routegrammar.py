@@ -50,16 +50,6 @@ class NODE_SPEC(parsenode.ParseNode):
     scope = None
     metric = None
 
-    def __init__(self, tokens):
-        """
-        Constructor.  Just calls the parent constructor (where all the interesting stuff lives).
-
-        :param tokens:
-
-        """
-        super(NODE_SPEC,self).__init__(tokens)
-    #---
-
 
     def parse(self, tokens):
         """
@@ -77,13 +67,17 @@ class NODE_SPEC(parsenode.ParseNode):
             tokens.remove(tokens[0])
 
         # PREFIX validation
-        error_txt = self.validatePrefix(tokens[0])
-        if not error_txt:
+        if tokens[0] == 'default':
+            self.PREFIX = '0.0.0.0/0'
+        else:
             self.PREFIX = tokens[0]
+
+        error_txt = self.validatePrefix(self.PREFIX)
+        if not error_txt:
             self._addRawSegment(self.PREFIX)     # Make sure we have the string segment stored
             tokens.remove(tokens[0])
         else:
-            raise NODE_SPEC_Error("Prefix (%s) did not pass validation, %s" %(tokens[0], error_txt))
+            raise NODE_SPEC_Error("Prefix (%s) did not pass validation: %s" %(self.PREFIX, error_txt))
 
         # Option parsing
         new_token_list = list(tokens)
@@ -143,12 +137,6 @@ class NH(parsenode.ParseNode):
     dev = None
     weight = None
 
-
-    def __init__(self, tokens):
-        """
-        """
-        super(NH,self).__init__(tokens)
-    #---
 
     def parse(self, tokens):
         """
@@ -216,12 +204,6 @@ class OPTIONS(parsenode.ParseNode):
     initrwnd = None
 
 
-    def __init__(self, tokens):
-        """
-        """
-        super(OPTIONS,self).__init__(tokens)
-        #---
-
     def parse(self, tokens):
         """
         Parses the OPTIONS part of a route (as defined by iproute2)
@@ -265,13 +247,10 @@ class INFO_SPEC(parsenode.ParseNode):
     """
     Defines the 'INFO_SPEC' segment of the iproute2 routing grammar.
     """
+    child_class_list = (NH, OPTIONS)
     #TODO: This is reference to NH according to the grammar, and there can be multiples.  Fix it to support this.
     nexthop = None
 
-
-    def __init__(self, tokens):
-        super(INFO_SPEC,self).__init__(tokens, [NH, OPTIONS])
-    #---
 
     def parse(self, tokens):
         return tokens
@@ -285,11 +264,31 @@ class ROUTE(parsenode.ParseNode):
     """
     Defines the 'ROUTE' segment of the the iproute2 routing grammar.
     """
+    child_class_list = (NODE_SPEC, INFO_SPEC)
     actions = ('add', 'del', 'change', 'append', 'replace', 'monitor')
     action = None
 
-    def __init__(self, tokens):
-        super(ROUTE,self).__init__(tokens, [NODE_SPEC, INFO_SPEC])
+    def __getattr__(self, attr):
+        for child in self.children:
+            if hasattr(self.children[child], attr):
+                return getattr(self.children[child], attr)
+
+
+    def __getitem__(self, item):
+        """
+        Getter for dictionary style operation.  Supports class variables and referencing child classes by their class
+        names.
+        :param item: String
+
+        """
+        try:
+            return self.__dict__[item]
+        # If the item doesn't exist, see if it matches a child's name
+        except KeyError:
+            if item in self.children:
+                return self.children[item]
+            else:
+                raise
     #---
 
 
