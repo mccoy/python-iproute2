@@ -18,7 +18,7 @@ Examples
 These are just some basic examples of what you can do with the routingtable module (currently the only one that's
 ready for public consumption).
 
-.. raw:: python
+**routingtable Examples**::
 
 route = """
 default via 172.16.0.1 dev eth0  metric 100
