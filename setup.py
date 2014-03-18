@@ -12,7 +12,7 @@ finally:
 
 setup(
     name='python-iproute2',
-    version='0.0.5',
+    version='0.1.5',
     packages=['iproute2'],
     url='https://github.com/nwhalen/python-iproute2',
     download_url='https://github.com/nwhalen/python-iproute2/tarball/master',
