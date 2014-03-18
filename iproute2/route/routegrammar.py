@@ -23,8 +23,10 @@
 #
 
 import sys
-import parsenode
 import cidrize
+
+from iproute2 import parsenode
+
 
 # -------- NODE_SPEC --------
 
@@ -48,16 +50,6 @@ class NODE_SPEC(parsenode.ParseNode):
     scope = None
     metric = None
 
-    def __init__(self, tokens):
-        """
-        Constructor.  Just calls the parent constructor (where all the interesting stuff lives).
-
-        :param tokens:
-
-        """
-        super(NODE_SPEC,self).__init__(tokens)
-    #---
-
 
     def parse(self, tokens):
         """
@@ -75,13 +67,17 @@ class NODE_SPEC(parsenode.ParseNode):
             tokens.remove(tokens[0])
 
         # PREFIX validation
-        error_txt = self.validatePrefix(tokens[0])
-        if not error_txt:
+        if tokens[0] == 'default':
+            self.PREFIX = '0.0.0.0/0'
+        else:
             self.PREFIX = tokens[0]
+
+        error_txt = self.validatePrefix(self.PREFIX)
+        if not error_txt:
             self._addRawSegment(self.PREFIX)     # Make sure we have the string segment stored
             tokens.remove(tokens[0])
         else:
-            raise NODE_SPEC_Error("Prefix (%s) did not pass validation, %s" %(tokens[0], error_txt))
+            raise NODE_SPEC_Error("Prefix (%s) did not pass validation: %s" %(self.PREFIX, error_txt))
 
         # Option parsing
         new_token_list = list(tokens)
@@ -131,6 +127,7 @@ class NODE_SPEC(parsenode.ParseNode):
 class NH(parsenode.ParseNode):
     """
     Defines the 'NH' segment of the iproute2 routing grammar.
+
     """
     options = ('via', 'dev', 'weight')
     flags = ('onlink', 'pervasive')
@@ -141,12 +138,6 @@ class NH(parsenode.ParseNode):
     dev = None
     weight = None
 
-
-    def __init__(self, tokens):
-        """
-        """
-        super(NH,self).__init__(tokens)
-    #---
 
     def parse(self, tokens):
         """
@@ -193,6 +184,7 @@ class NH(parsenode.ParseNode):
 class OPTIONS(parsenode.ParseNode):
     """
     Defines the 'OPTIONS' segment of the iproute2 routing grammar.
+
     """
     options = ('mtu', 'advmss','rtt','rttvar','reordering','window','cwnd','initcwnd','ssthresh','realms','src',
                'rto_min','hoplimit','initrwnd')
@@ -213,12 +205,6 @@ class OPTIONS(parsenode.ParseNode):
     hoplimit = None
     initrwnd = None
 
-
-    def __init__(self, tokens):
-        """
-        """
-        super(OPTIONS,self).__init__(tokens)
-        #---
 
     def parse(self, tokens):
         """
@@ -262,14 +248,24 @@ class INFO_SPEC_Error(Exception):
 class INFO_SPEC(parsenode.ParseNode):
     """
     Defines the 'INFO_SPEC' segment of the iproute2 routing grammar.
+
     """
+    child_class_list = (NH, OPTIONS)
     #TODO: This is reference to NH according to the grammar, and there can be multiples.  Fix it to support this.
     nexthop = None
 
 
-    def __init__(self, tokens):
-        super(INFO_SPEC,self).__init__(tokens, [NH, OPTIONS])
-    #---
+    def __getattr__(self, attr):
+        """
+        Allows child attributes to be fetched from the parent (making life MUCH easier for most cases).
+
+        """
+        for child in self.children:
+            if hasattr(self.children[child], attr):
+                return getattr(self.children[child], attr)
+
+        raise AttributeError
+
 
     def parse(self, tokens):
         return tokens
@@ -282,13 +278,22 @@ class INFO_SPEC(parsenode.ParseNode):
 class ROUTE(parsenode.ParseNode):
     """
     Defines the 'ROUTE' segment of the the iproute2 routing grammar.
+
     """
+    child_class_list = (NODE_SPEC, INFO_SPEC)
     actions = ('add', 'del', 'change', 'append', 'replace', 'monitor')
     action = None
 
-    def __init__(self, tokens):
-        super(ROUTE,self).__init__(tokens, [NODE_SPEC, INFO_SPEC])
-    #---
+    def __getattr__(self, attr):
+        """
+        Allows child attributes to be fetched from the parent (making life MUCH easier for most cases).
+
+        """
+        for child in self.children:
+            if hasattr(self.children[child], attr):
+                return getattr(self.children[child], attr)
+
+        raise AttributeError
 
 
     def parse(self, tokens):
