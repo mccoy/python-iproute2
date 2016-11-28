@@ -23,20 +23,23 @@
 
 import subprocess
 
-class IPCommandError(Exception): pass
+class IPCommandError(Exception):
+    def __init__(self, message, code):
+        super(IPCommandError, self).__init__(message)
+        self.code = code
 
-def ip(command, path_to_ip='/sbin/ip'):
+
+def ip(ip_args, path_to_ip='/sbin/ip'):
     """
     Runs iproute2 on the command-line.
 
     """
-    ip_cmd = "%s %s" % (path_to_ip,command)
-    proc = subprocess.Popen(ip_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    ip_cmd = '{} {}'.format(path_to_ip, ip_args)
 
-    stdout, stderr = proc.communicate()
-    return_code = subprocess.Popen.poll(proc)
-
-    return {'stdout': stdout, 'stderr': stderr, 'return_code': return_code}
+    try:
+        return subprocess.check_output(ip_cmd, shell=False)
+    except subprocess.CalledProcessError as e:
+        raise IPCommandError(e.message, e.returncode)
 
 
 def route(params = ''):
@@ -44,9 +47,4 @@ def route(params = ''):
     Fetches the routing table
 
     """
-    route_info = ip('route %s' % params)
-
-    if route_info['stderr'] or route_info['return_code']:
-        raise IPCommandError(route_info['stderr'])
-
-    return route_info['stdout']
+    return ip('route {}'.format(params))

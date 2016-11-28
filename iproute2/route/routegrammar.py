@@ -38,8 +38,9 @@ class NODE_SPEC(parsenode.ParseNode):
     Defines the 'NODE_SPEC' segment of the iproute2 routing grammar.
     """
     # Defined by iproute2's grammar
-    types = ('unicast', 'local', 'broadcast', 'multicast', 'throw', 'unreachable', 'prohibit', 'blackhole', 'nat')
-    options = ('tos','table','proto','scope','metric')
+    types = ('unicast', 'local', 'broadcast', 'multicast', 'throw',
+             'unreachable', 'prohibit', 'blackhole', 'nat')
+    options = ('tos', 'table', 'proto', 'scope', 'metric')
 
     # NODE_SPEC variables/options
     TYPE = None
@@ -115,7 +116,7 @@ class NODE_SPEC(parsenode.ParseNode):
         try:
             cidrize.cidrize(prefix)
         except cidrize.CidrizeError:
-            return sys.exc_value
+            return sys.exc_info()[1]
         else:
             return None
     #---
@@ -186,8 +187,9 @@ class OPTIONS(parsenode.ParseNode):
     Defines the 'OPTIONS' segment of the iproute2 routing grammar.
 
     """
-    options = ('mtu', 'advmss','rtt','rttvar','reordering','window','cwnd','initcwnd','ssthresh','realms','src',
-               'rto_min','hoplimit','initrwnd')
+    options = ('mtu', 'advmss', 'rtt', 'rttvar', 'reordering', 'window',
+               'cwnd', 'initcwnd', 'ssthresh', 'realms', 'src', 'rto_min',
+               'hoplimit', 'initrwnd')
 
     # OPTIONS variables/options
     mtu = None

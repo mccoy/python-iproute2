@@ -19,11 +19,14 @@
 #   limitations under the License.
 #
 # DESCRIPTION:
-#   Defines a network interface and methods to work with it.  Currently only works on Linux; Windows functionality is
-#   planned.
+#   Defines a network interface and methods to work with it.  Currently
+#   only works on Linux; Windows functionality is planned.
 #
 
-from lib import nixcommon
+from __future__ import print_function
+
+import logging
+from utils import cmd
 
 IP_V4 = 4
 IP_V6 = 6
@@ -56,84 +59,24 @@ class Interface(object):
     units = INT_MBPS
     bandwidth_in = 0
     bandwidth_out = 0
-    addresses = {'v4':[], 'v6':[]}
+    addresses = {'v4':[], 'v6':[], 'mac': None}
 
 
-    def __init__(self, name, config = None):
+    def __init__(self, name):
         """
         Constructor
         """
-        self.setName(name)
-
-        if config:
-            self.importConfig(config)
-    #---
-
-
-    def _iplink(self, arguments):
-        """
-        Runs the 'ip' command with the provided arguments.
-        :param arguments: Argument string to pass to the 'ip' command.
-        :return: Dictionary from meth:nixcommon.runProcess
-        """
-        return nixcommon.runProcess("ip link %s" %arguments)
-    #---
-
-
-    def _ipaddress(self, arguments):
-        """
-        Just an alias to the 'ip address' command.
-        :return: Dictionary from meth:nixcommon.runProcess
-        """
-        return nixcommon.runProcess("ip address %s" %arguments)
-    #---
-
-
-    def importConfig(self, config):
-        """
-        Imports configuration from a dictionary
-
-        :param config: Dictionary of configuration parameters
-        """
-        for key in config:
-            if hasattr(self, key):
-                setattr(self, key, config[key])
+        try:
+            cmd.ip('link show "{}"'.format(name))
+        except cmd.IPCommandError as err:
+            if err.code == 255:
+                raise InterfaceError('Invalid interface name: {}'.format(name))
             else:
-                raise ConfigError("%s is not a valid configuration option!" %key)
-    #---
-
-
-    def setName(self, name):
-        """
-        Sets the name of the operating system interface this class refers to.
-
-        :param name: [String] Operating system's name for the interface
-        """
-        # Checks to see if the interface name is valid
-        ip_link = self._iplink("show \"%s\"" %name)
-
-        
-        if ip_link['return_value'] == 255:
-            raise InterfaceError("Invalid interface name: %s" %name)
-        elif ip_link['return_value']:
-            print "return_value: %s" %ip_link['return_value']
-            raise InterfaceError("Unexpected error: %s" %ip_link['stderr'])
+                errmsg = 'Unexpected error ({}): {}'.format(err.code, err.message)
+                logging.error(errmsg)
+                raise InterfaceError(errmsg)
         else:
             self.name = name
-    #---
-
-
-    def setBandwidth(self, bw_in = 0, bw_out = 0, units = INT_MBPS):
-        """
-        Sets the bandwidth of the interface (if values are provided), otherwise tries to determine interface speed
-        from the operating system.  Setting bandwdith will NOT change the speed on the interface.  In the future it
-        should set the rates in the traffic-management system.
-
-        :param bw_in: Integer representing the inbound bandwidth capabilities.
-        :param bw_out: Integer representing the outbound bandwidth capabilities.
-        :param units: Units the bandwidth is represented in.
-        """
-    #---
 
 
     def getAddresses(self):
@@ -144,14 +87,15 @@ class Interface(object):
         """
         v4 = []
         v6 = []
-        ip_address = self._ipaddress("show dev \"%s\"" %self.name)
-        int_ip_info = ip_address['stdout'].strip().splitlines()
+        ip_cmd_output = cmd.ip('address show dev "{}"'.format(self.name))
+        for cmd_line in ip_cmd_output:
+            split_line = cmd_line.decode('utf-8').strip().split()
 
-        for info_line in int_ip_info:
-            split_line = info_line.strip().split()
-
+            # MAC address
+            if split_line[0] == 'link/ether':
+                self.addresses['mac'] = split_line[1]
             # IPv4 address
-            if split_line[0] == 'inet':
+            elif split_line[0] == 'inet':
                 v4.append(tuple(split_line[1].split('/')))
             # IPv6 address
             elif split_line[0] == 'inet6':
@@ -170,14 +114,15 @@ class Interface(object):
 
         :param address: String containing IP address and subnet in CIDR notation.
         """
-        ip_address = self._ipaddress("add \"%s\" dev \"%s\"" %(address, self.name))
-
-        if ip_address['return_value'] == 254:
-            raise AddressError("%s already exists on %s" %(address,self.name))
-        elif ip_address['return_value']:
-            raise InterfaceError("Unexpected error: %s" %ip_address['stderr'])
-
-        self.getAddresses()     # Update the IP address cache
+        try:
+            cmd.ip('address add "{}" dev "{}"'.format(address, self.name))
+        except cmd.IPCommandError as err:
+            if err.code == 254:
+                raise AddressError("{} already exists on {}".format(address, self.name))
+            else:
+                raise InterfaceError("Unexpected error ({}): {}".format(err.code, err.message))
+        else:
+            self.getAddresses()     # Update the IP address cache
     #---
 
 
@@ -187,59 +132,59 @@ class Interface(object):
 
         :param address: String containing IP address and subnet in CIDR notation.
         """
-        ip_address = self._ipaddress("del \"%s\" dev \"%s\"" %(address, self.name))
-
-        if ip_address['return_value'] == 254:
-            raise AddressError("%s does not exist on %s" %(address,self.name))
-        elif ip_address['return_value']:
-            raise InterfaceError("Unexpected error: %s" %ip_address['stderr'])
-
+        try:
+            cmd.cmd.ip('address del "{}" dev "{}"'.format(address, self.name))
+        except cmd.IPCommmandError as err:
+            if err.code == 254:
+                raise AddressError('{} does not exist on {}'.format(address, self.name))
+            else:
+                raise InterfaceError('Unexpected error ({}): {}'.format(err.code, err.message))
         self.getAddresses()     # Update the IP address cache
-    #---
 
 
     def up(self):
         """
         Brings the interface up.
-
         """
-        iproute = self._iplink("set \"%s\" up" %self.name)
-        
-        if iproute['return_value'] == 2:
-            raise RequiresEscalationError("Altering interface state requires escalated privileges.")
-        elif iproute['return_value']:
-            raise InterfaceError("Unexpected error: %s" %iproute['stderr'])
-    #---
+        try:
+            cmd.ip_cmd('link set "{}" up'.format(self.name))
+        except cmd.IPCommandError as err:
+            if err.code == 2:
+                errmsg = 'Altering interface state requires escalated privileges.'
+                raise RequiresEscalationError(errmsg)
+            else:
+                raise InterfaceError('Unexpected error: {}'.format(err.message))
 
 
     def down(self):
         """
         Disables the interface.
-
         """
-        iproute = self._iplink("set \"%s\" down" %self.name)
-        
-        if iproute['return_value'] == 2:
-            raise RequiresEscalationError("Altering interface state requires escalated privileges.")
-        elif iproute['return_value']:
-            raise InterfaceError("Unexpected error: %s" %iproute['stderr'])
-    #---
+        try:
+            cmd.ip_cmd('link set "{}" down'.format(self.name))
+        except cmd.IPCommandError as err:
+            if err.code == 2:
+                errmsg = 'Altering interface state requires escalated privileges.'
+                raise RequiresEscalationError(errmsg)
+            else:
+                raise InterfaceError('Unexpected error: {}'.format(err.message))
 
 
-    def status(self, simple = False):
+    def status(self, simple=False):
         """
         Fetches the status of the interface, according to iproute.
 
         :param simple: Return only the status, no additional information if ``True``.
-        :return: Simple status string if param:simple is ``True``, otherwise, full iproute status string.
+        :return: Simple status string if param:simple is ``True``, otherwise,
+                 full iproute status string.
         """
-        iproute = self._iplink("show \"%s\"" %self.name)
-        
-        if iproute['return_value']:
-            raise InterfaceError("Unexpected error: %s" %iproute['stderr'])
+        try:
+            iproute = cmd.ip('show "{}"'.format(self.name))
+        except cmd.IPCommandError as err:
+            raise InterfaceError("Unexpected error ({}): {}".format(err.code, err.message))
 
         if simple:
-            return iproute['stdout'].split('state')[1].split()[0]
-
-        return iproute['stdout']
+            return iproute.split('state')[1].split()[0]
+        else:
+            return iproute
     #---

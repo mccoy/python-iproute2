@@ -26,11 +26,12 @@
 from collections import OrderedDict
 
 
-class ParseNodeError(Exception): pass
+class ParseNodeError(Exception):
+    pass
 
 
 class ParseNode(object):
-    def __init__(self, tokens, raw_includes_children = True):
+    def __init__(self, tokens, raw_includes_children=True):
         """
         Constructor.  Calls meth:parse to parse the incoming tokens and then adds any child nodes.
         :param tokens: List of text tokens to parse
@@ -122,7 +123,8 @@ class ParseNode(object):
 
 
     # Simply adds a segment to self.raw_data with the proper spacing
-    def _addRawSegment(self, segment): self.raw_data += "%s " %segment
+    def _addRawSegment(self, segment):
+        self.raw_data += "%s " %segment
 
 
     def addChildren(self, nodes, node_data):
@@ -142,5 +144,3 @@ class ParseNode(object):
             data = new_node.next_data
     #---
 #---
-
-

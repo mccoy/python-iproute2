@@ -39,7 +39,7 @@ class RoutingTable(object):
     Defines a routing table.
 
     """
-    def __init__(self, table_txt = None, description = None):
+    def __init__(self, table_txt=None, description=None):
         """
         Constructor
 
@@ -109,7 +109,7 @@ class RoutingTable(object):
         return table
     #---
 
-    def load(self, table_txt = None):
+    def load(self, table_txt=None):
         """
         Loads a routing table from the provided text.  If text is not provided then the system routing table is loaded.
 
@@ -124,43 +124,6 @@ class RoutingTable(object):
         self.parse()
     #---
 
-    def addRoute(self, route):
-        """
-        Adds a route to the routing table.  This route will not be applied to the system until meth:apply() is called.
-        :param route: Instance of class:Route.
-
-        """
-        if type(route) != route.Route:
-            raise InvalidRouteError("Route is not a 'Route' object.")
-
-        self.routes.append(route)
-    #---
-
-
-    def removeRoute(self, route):
-        """
-        Removes a route from the routing table.  This change will not be applied to the system until meth:apply() is
-        called.
-
-        """
-    #---
-
-
-    def apply(self):
-        """
-        Applies the routing table definition to the system.
-
-        """
-    #---
-
-
-    def remove(self):
-        """
-        Removes the routing table from the system.
-
-        """
-    #---
-
 
     def parse(self):
         """
@@ -169,7 +132,7 @@ class RoutingTable(object):
         """
         route_objs = (routegrammar.ROUTE(route) for route in self.tokenized_table)
         self.table = {str(route_obj.PREFIX):route_obj for route_obj in route_objs}
-        self.table_no_cidr = {key.split('/')[0]:value for key,value in self.table.iteritems()}
+        self.table_no_cidr = {key.split('/')[0]:value for key, value in self.table.iteritems()}
 
     #---
 
